@@ -200,6 +200,16 @@ RUN apt-get update --yes && \
 # Create alternative for nano -> nano-tiny
 RUN update-alternatives --install /usr/bin/nano nano /bin/nano-tiny 10
 
+# scenario_simulator_v2.
+RUN mkdir /autoware/simv2 
+WORKDIR "/autoware/simv2"
+RUN git clone https://github.com/tier4/scenario_simulator_v2.git
+RUN cd scenario_simulator_v2.git 
+RUN vcs import external < dependency_${ROS_DISTRO}.repos
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash && rosdep install -iry --from-paths . --rosdistro ${ROS_DISTRO}
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash && colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+
 # Switch back to jovyan to avoid accidental container runs as root
 USER ${NB_UID}
 
