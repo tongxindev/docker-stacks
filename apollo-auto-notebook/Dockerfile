@@ -1,7 +1,7 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 ARG OWNER=jupyter
-ARG BASE_CONTAINER=zhanjun/jupyter:deepo-all-notebook
+ARG BASE_CONTAINER=zhanjun/jupyter:apollo-auto-notebook-v1
 FROM $BASE_CONTAINER
 
 USER root
