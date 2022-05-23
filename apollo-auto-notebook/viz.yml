@@ -1,0 +1,221 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: jupyterhub
+    component: proxy-viz-api
+    release: witjhub
+  name: proxy-viz-api
+  namespace: witjhub
+  resourceVersion: '4726821'
+spec:
+  clusterIP: 10.111.18.26
+  clusterIPs:
+    - 10.111.18.26
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - port: 8001
+      protocol: TCP
+      targetPort: api
+  selector:
+    app: jupyterhub
+    component: proxy-viz
+    release: witjhub
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}
+
+---
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: jupyterhub
+    component: proxy-viz-public
+    release: witjhub
+  name: proxy-viz-public
+  namespace: witjhub
+  resourceVersion: '4726579'
+spec:
+  allocateLoadBalancerNodePorts: true
+  clusterIP: 10.109.169.154
+  clusterIPs:
+    - 10.109.169.154
+  externalTrafficPolicy: Cluster
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - name: http
+      nodePort: 32109
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    component: proxy-viz
+    release: witjhub
+  sessionAffinity: None
+  type: LoadBalancer
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    k8s.kuboard.cn/workload: proxy-viz
+    meta.helm.sh/release-name: witjhub
+    meta.helm.sh/release-namespace: witjhub
+  labels:
+    app: jupyterhub
+    app.kubernetes.io/managed-by: Helm
+    chart: jupyterhub-1.2.0
+    component: proxy-viz
+    heritage: Helm
+    k8s.kuboard.cn/name: proxy-viz
+    release: witjhub
+  name: proxy-viz
+  namespace: witjhub
+  resourceVersion: '4749685'
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: jupyterhub
+      app.kubernetes.io/managed-by: Helm
+      chart: jupyterhub-1.2.0
+      component: proxy-viz
+      heritage: Helm
+      k8s.kuboard.cn/name: proxy-viz
+      release: witjhub
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        checksum/auth-token: 7c84
+        checksum/proxy-secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        kubectl.kubernetes.io/restartedAt: '2022-05-16T13:55:04+08:00'
+      creationTimestamp: null
+      labels:
+        app: jupyterhub
+        app.kubernetes.io/managed-by: Helm
+        chart: jupyterhub-1.2.0
+        component: proxy-viz
+        heritage: Helm
+        k8s.kuboard.cn/name: proxy-viz
+        release: witjhub
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                  - key: hub.jupyter.org/node-purpose
+                    operator: In
+                    values:
+                      - core
+              weight: 100
+      containers:
+        - command:
+            - configurable-http-proxy
+            - '--ip='
+            - '--api-ip='
+            - '--api-port=8001'
+            - '--default-target=http://hub:$(HUB_SERVICE_PORT)'
+            - '--error-target=http://hub:$(HUB_SERVICE_PORT)/hub/error'
+            - '--port=8000'
+            - '--log-level=debug'
+            - '--no-include-prefix'
+          env:
+            - name: CONFIGPROXY_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: hub.config.ConfigurableHTTPProxy.auth_token
+                  name: hub
+          image: 'jupyterhub/configurable-http-proxy:4.5.0'
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /_chp_healthz
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: chp
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+            - containerPort: 8001
+              name: api
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /_chp_healthz
+              port: http
+              scheme: HTTP
+            periodSeconds: 2
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsGroup: 65534
+            runAsUser: 65534
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 60
+      tolerations:
+        - effect: NoSchedule
+          key: hub.jupyter.org/dedicated
+          operator: Equal
+          value: core
+        - effect: NoSchedule
+          key: hub.jupyter.org_dedicated
+          operator: Equal
+          value: core
+
+
+
+docker run -itd --privileged --name apollo_dev_wit -e DISPLAY=:0 
+-e DOCKER_USER=wit -e USER=wit -e DOCKER_USER_ID=1000 -e DOCKER_GRP=wit -e DOCKER_GRP_ID=1000
+ -e DOCKER_IMG=apolloauto/apollo:dev-x86_64-18.04-20210914_1336 -e USE_GPU_HOST=0 
+ -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=compute,video,graphics,utility 
+ --volume apollo_map_volume-sunnyvale_big_loop_wit:/apollo/modules/map/data/sunnyvale_big_loop 
+ --volume apollo_map_volume-sunnyvale_loop_wit:/apollo/modules/map/data/sunnyvale_loop 
+ --volume apollo_map_volume-sunnyvale_with_two_offices_wit:/apollo/modules/map/data/sunnyvale_with_two_offices 
+ --volume apollo_map_volume-san_mateo_wit:/apollo/modules/map/data/san_mateo 
+ --volume apollo_audio_volume_wit:/apollo/modules/audio/data/ 
+ --volume apollo_yolov4_volume_wit:/apollo/modules/perception/camera/lib/obstacle/detector/yolov4/model/ 
+ --volume apollo_faster_rcnn_volume_wit:/apollo/modules/perception/production/data/
+  perception/camera/models/traffic_light_detection/faster_rcnn_model 
+ --volume apollo_smoke_volume_wit:/apollo/modules/perception/production/data/perception/camera/models/yolo_obstacle_detector/smoke_libtorch_model -v /home/wit/apollo:/apollo -v /dev:/dev -v /media:/media 
+ -v /tmp/.X11-unix:/tmp/.X11-unix:rw -v /etc/localtime:/etc/localtime:ro -v /usr/src:/usr/src
+
+ -v /lib/modules:/lib/modules --net host -w /apollo 
+ --add-host in-dev-docker:127.0.0.1 --add-host witpilot:127.0.0.1 
+ --hostname in-dev-docker --shm-size 2G --pid=host -v /dev/null:/dev/raw1394 
+ apolloauto/apollo:dev-x86_64-18.04-20210914_1336 /bin/bash
+
+
+URL https://zlib.net/zlib-1.2.12.tar.gz
+URL_HASH SHA256=91844808532e5ce316b3c010929493c0244f3d37593afd6de04f71821d5136d9
